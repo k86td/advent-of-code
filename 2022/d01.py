@@ -24,8 +24,6 @@ def part1(data):
     if c_sum > biggest_cal:
       biggest_cal = c_sum
 
-  print("Biggest calorie is: " + str(biggest_cal)) 
-
   return biggest_cal
 
 def part2(data):
@@ -53,8 +51,6 @@ def part2(data):
   for x in range(1, 4):
     t_cal = t_cal + biggest_cal[-x]
   
-  print("Total Calories for the three elves is: " + str(t_cal))
-
   return t_cal
 
 if __name__ == "__main__":
