@@ -1,146 +1,4 @@
-use std::collections::HashMap;
-
-fn get_block_count(input: &str) -> Option<(String, usize)> {
-    let values: Vec<&str> = input.split(" ").into_iter().collect();
-
-    if values.len() == 2 {
-        Some((values[1].to_string(), values[0].parse().unwrap()))
-    } else {
-        None
-    }
-}
-
-/// Process a line and return HaspMap of
-/// block colors and their count
-fn process_line(blocks: &str) -> Vec<HashMap<String, usize>> {
-    let mut colors: Vec<HashMap<String, usize>> = Vec::default();
-
-    for subset in blocks.split(";") {
-        let mut curr_map: HashMap<String, usize> = HashMap::default();
-        for block in subset.trim().split(",") {
-            if let Some((col_block, col_count)) = get_block_count(block.trim()) {
-                if let Some(saved_col_count) = curr_map.get_mut(&col_block) {
-                    *saved_col_count += col_count;
-                } else {
-                    curr_map.insert(col_block, col_count);
-                }
-            }
-        }
-        colors.push(curr_map.clone());
-    }
-
-    colors
-}
-
-/// Set filters for colors to ensure certain count
-/// for every color
-fn validate_color_map(input: Vec<HashMap<String, usize>>) -> bool {
-    if input.len() > 1 {
-        for col_input in input {
-            if col_input.get("red").unwrap_or(&0) <= &12
-                && col_input.get("green").unwrap_or(&0) <= &13
-                && col_input.get("blue").unwrap_or(&0) <= &14
-            {
-                continue;
-            } else {
-                return false;
-            }
-        }
-
-        true
-    } else {
-        false
-    }
-}
-
-fn get_game_id(input: &str) -> usize {
-    input
-        .replace("Game ", "")
-        .trim()
-        .parse()
-        .unwrap_or_default()
-}
-
-fn process(input: &str) -> usize {
-    let mut sum = 0;
-    for line in input.split("\n") {
-        if line.trim() == "" {
-            continue;
-        }
-
-        let line_splitted: Vec<&str> = line.split(":").into_iter().collect();
-
-        let game_id = get_game_id(line_splitted.get(0).unwrap());
-        if validate_color_map(process_line(line_splitted.get(1).unwrap().trim())) {
-            sum += game_id;
-        }
-    }
-
-    sum
-}
-
-#[cfg(test)]
-mod test {
-    use std::collections::HashMap;
-
-    use crate::{get_block_count, get_game_id, process, process_line};
-
-    #[test]
-    pub fn part1() {
-        let input: &str = "
-        Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-        Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
-        Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
-        Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
-        Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
-        ";
-
-        assert_eq!(process(input), 8);
-    }
-
-    #[test]
-    pub fn getting_cube_colors() {
-        let mut f1: HashMap<String, usize> = HashMap::new();
-        let mut f1_1: HashMap<String, usize> = HashMap::new();
-
-        f1.insert("black".to_string(), 3);
-        f1.insert("blue".to_string(), 4);
-        f1_1.insert("red".to_string(), 1);
-
-        assert_eq!(process_line("3 black, 4 blue; 1 red"), vec![f1, f1_1]);
-
-        let mut f2: HashMap<String, usize> = HashMap::new();
-        let mut f2_1: HashMap<String, usize> = HashMap::new();
-        let mut f2_2: HashMap<String, usize> = HashMap::new();
-
-        f2.insert("black".to_string(), 3);
-        f2.insert("blue".to_string(), 4);
-        f2_1.insert("red".to_string(), 1);
-        f2_2.insert("red".to_string(), 2);
-
-        assert_eq!(
-            process_line("3 black, 4 blue; 1 red; 2 red"),
-            vec![f2, f2_1, f2_2]
-        );
-    }
-
-    #[test]
-    pub fn getting_cube_number_and_color() {
-        assert_eq!(get_block_count("3 red"), Some(("red".to_string(), 3)));
-        assert_eq!(get_block_count("14 red"), Some(("red".to_string(), 14)));
-        assert_eq!(get_block_count("1 blue"), Some(("blue".to_string(), 1)));
-        assert_eq!(get_block_count("78 green"), Some(("green".to_string(), 78)));
-    }
-
-    #[test]
-    pub fn getting_game_id() {
-        assert_eq!(get_game_id("Game 15"), 15);
-        assert_eq!(get_game_id("Game 1"), 1);
-        assert_eq!(get_game_id("Game 99"), 99);
-        assert_eq!(get_game_id("Game 100"), 100);
-        assert_eq!(get_game_id("Game 1058"), 1058);
-    }
-}
+use std::{collections::HashMap, thread::current};
 
 fn main() {
     let input = "
@@ -246,5 +104,239 @@ Game 99: 2 green, 9 red; 8 red, 4 green, 9 blue; 8 blue, 13 red; 10 green, 8 blu
 Game 100: 5 blue, 2 green, 7 red; 14 red, 15 green, 1 blue; 3 blue, 3 red; 8 green, 10 red, 6 blue; 6 blue, 4 red, 8 green
 ";
 
-    println!("Result: {}", process(input));
+    println!("Result: {}", process_part_two(input));
+}
+
+fn get_block_count(input: &str) -> Option<(String, usize)> {
+    let values: Vec<&str> = input.split(' ').collect();
+
+    if values.len() == 2 {
+        Some((values[1].to_string(), values[0].parse().unwrap()))
+    } else {
+        None
+    }
+}
+
+/// Process a line and return HaspMap of
+/// block colors and their count
+fn process_line(blocks: &str) -> Vec<HashMap<String, usize>> {
+    let mut colors: Vec<HashMap<String, usize>> = Vec::default();
+
+    for subset in blocks.split(';') {
+        let mut curr_map: HashMap<String, usize> = HashMap::default();
+        for block in subset.trim().split(',') {
+            if let Some((col_block, col_count)) = get_block_count(block.trim()) {
+                if let Some(saved_col_count) = curr_map.get_mut(&col_block) {
+                    *saved_col_count += col_count;
+                } else {
+                    curr_map.insert(col_block, col_count);
+                }
+            }
+        }
+        colors.push(curr_map.clone());
+    }
+
+    colors
+}
+
+/// Set filters for colors to ensure certain count
+/// for every color
+fn validate_color_map(
+    input: Vec<HashMap<String, usize>>,
+    filter: fn(HashMap<String, usize>) -> bool,
+) -> bool {
+    if input.len() > 1 {
+        for col_input in input {
+            if filter(col_input) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+
+        true
+    } else {
+        false
+    }
+}
+
+fn get_color_map(
+    input: Vec<HashMap<String, usize>>,
+    filter: fn(&mut HashMap<String, usize>),
+) -> Option<HashMap<String, usize>> {
+    if !input.is_empty() {
+        let mut latest_res = HashMap::default();
+        for mut col_input in input {
+            filter(&mut col_input);
+            latest_res = col_input.clone();
+        }
+
+        return Some(latest_res);
+    }
+
+    None
+}
+
+fn get_game_id(input: &str) -> usize {
+    input
+        .replace("Game ", "")
+        .trim()
+        .parse()
+        .unwrap_or_default()
+}
+
+fn process_part_one(input: &str) -> usize {
+    let mut sum = 0;
+    for line in input.split('\n') {
+        if line.trim() == "" {
+            continue;
+        }
+
+        let line_splitted: Vec<&str> = line.split(':').collect();
+
+        let game_id = get_game_id(line_splitted.first().unwrap());
+        if validate_color_map(process_line(line_splitted.get(1).unwrap().trim()), |hm| {
+            hm.get("red").unwrap_or(&0) <= &12
+                && hm.get("green").unwrap_or(&0) <= &13
+                && hm.get("blue").unwrap_or(&0) <= &14
+        }) {
+            sum += game_id;
+        }
+    }
+
+    sum
+}
+
+fn process_part_two(input: &str) -> usize {
+    let mut sum = 0;
+    for line in input.split('\n') {
+        if line.trim() == "" {
+            continue;
+        }
+
+        // let line = line.replace(';', ",");
+        let line_splitted: Vec<&str> = line.split(':').collect();
+
+        let game_id = get_game_id(line_splitted.first().unwrap());
+
+        let blocks = process_line(line_splitted.get(1).unwrap().trim());
+
+        let mut lowest_required_block: HashMap<String, usize> = HashMap::new();
+        lowest_required_block.insert("blue".to_string(), 0);
+        lowest_required_block.insert("red".to_string(), 0);
+        lowest_required_block.insert("green".to_string(), 0);
+
+        for block in blocks {
+            let green = block.get("green").unwrap_or(&0);
+            let red = block.get("red").unwrap_or(&0);
+            let blue = block.get("blue").unwrap_or(&0);
+
+            let curr_green = lowest_required_block.get_mut("green").unwrap();
+            if green > curr_green {
+                *curr_green = *green;
+            }
+
+            let curr_blue = lowest_required_block.get_mut("blue").unwrap();
+            if blue > curr_blue {
+                *curr_blue = *blue;
+            }
+
+            let curr_red = lowest_required_block.get_mut("red").unwrap();
+            if red > curr_red {
+                *curr_red = *red;
+            }
+        }
+
+        let red = lowest_required_block.get("red").unwrap();
+        let blue = lowest_required_block.get("blue").unwrap();
+        let green = lowest_required_block.get("green").unwrap();
+
+        sum += red * blue * green;
+    }
+
+    sum
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use crate::{get_block_count, get_game_id, process_line, process_part_one, process_part_two};
+
+    #[test]
+    pub fn part1() {
+        let input: &str = "
+        Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+        Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+        Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+        Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+        Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
+        ";
+
+        assert_eq!(process_part_one(input), 8);
+    }
+
+    #[test]
+    pub fn part2() {
+        assert_eq!(
+            process_part_two("Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"),
+            48
+        );
+
+        assert_eq!(
+            process_part_two(
+                "
+            Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+            Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+            Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+            Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+            Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
+            "
+            ),
+            2286
+        );
+    }
+
+    #[test]
+    pub fn getting_cube_colors() {
+        let mut f1: HashMap<String, usize> = HashMap::new();
+        let mut f1_1: HashMap<String, usize> = HashMap::new();
+
+        f1.insert("black".to_string(), 3);
+        f1.insert("blue".to_string(), 4);
+        f1_1.insert("red".to_string(), 1);
+
+        assert_eq!(process_line("3 black, 4 blue; 1 red"), vec![f1, f1_1]);
+
+        let mut f2: HashMap<String, usize> = HashMap::new();
+        let mut f2_1: HashMap<String, usize> = HashMap::new();
+        let mut f2_2: HashMap<String, usize> = HashMap::new();
+
+        f2.insert("black".to_string(), 3);
+        f2.insert("blue".to_string(), 4);
+        f2_1.insert("red".to_string(), 1);
+        f2_2.insert("red".to_string(), 2);
+
+        assert_eq!(
+            process_line("3 black, 4 blue; 1 red; 2 red"),
+            vec![f2, f2_1, f2_2]
+        );
+    }
+
+    #[test]
+    pub fn getting_cube_number_and_color() {
+        assert_eq!(get_block_count("3 red"), Some(("red".to_string(), 3)));
+        assert_eq!(get_block_count("14 red"), Some(("red".to_string(), 14)));
+        assert_eq!(get_block_count("1 blue"), Some(("blue".to_string(), 1)));
+        assert_eq!(get_block_count("78 green"), Some(("green".to_string(), 78)));
+    }
+
+    #[test]
+    pub fn getting_game_id() {
+        assert_eq!(get_game_id("Game 15"), 15);
+        assert_eq!(get_game_id("Game 1"), 1);
+        assert_eq!(get_game_id("Game 99"), 99);
+        assert_eq!(get_game_id("Game 100"), 100);
+        assert_eq!(get_game_id("Game 1058"), 1058);
+    }
 }
