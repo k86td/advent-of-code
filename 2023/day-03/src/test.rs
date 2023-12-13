@@ -1,4 +1,4 @@
-use crate::check_number_with_symbol;
+use crate::{number_edge_of_symbol, Coord};
 #[cfg(test)]
 use crate::{parse_input, process_part_one, Number};
 
@@ -11,11 +11,11 @@ fn parsing_single_number() {
     assert_eq!(
         parse_input(input),
         (
-            vec![(1, 1)],
+            vec![Coord(1, 1)],
             vec![Number {
                 value: 456,
-                begin: (0, 0),
-                end: (2, 0)
+                begin: Coord(0, 0),
+                end: Coord(2, 0)
             }]
         )
     );
@@ -32,17 +32,17 @@ fn parsing_dual_number_same_line() {
     assert_eq!(
         parse_input(input),
         (
-            vec![(1, 1)],
+            vec![Coord(1, 1)],
             vec![
                 Number {
                     value: 456,
-                    begin: (0, 0),
-                    end: (2, 0)
+                    begin: Coord(0, 0),
+                    end: Coord(2, 0)
                 },
                 Number {
                     value: 788,
-                    begin: (4, 0),
-                    end: (6, 0)
+                    begin: Coord(4, 0),
+                    end: Coord(6, 0)
                 }
             ]
         )
@@ -60,7 +60,48 @@ fn symbol_detect_edge_number() {
     assert_eq!(symbols.len(), 1);
     assert_eq!(numbers.len(), 1);
 
-    assert!(check_number_with_symbol(symbols[0], numbers[0]));
+    assert!(number_edge_of_symbol(symbols[0], numbers[0]));
+
+    let input = "
+    67..
+    ...*";
+
+    let (symbols, numbers) = parse_input(input);
+
+    assert_eq!(symbols.len(), 1);
+    assert_eq!(numbers.len(), 1);
+
+    assert!(!number_edge_of_symbol(symbols[0], numbers[0]));
+}
+
+#[test]
+fn point_in_rectangle() {
+    assert!(number_edge_of_symbol(
+        Coord(1, 1),
+        Number {
+            value: 5,
+            begin: Coord(0, 0),
+            end: Coord(1, 0)
+        }
+    ));
+
+    assert!(!number_edge_of_symbol(
+        Coord(5, 1),
+        Number {
+            value: 5,
+            begin: Coord(0, 0),
+            end: Coord(1, 0)
+        }
+    ));
+
+    assert!(!number_edge_of_symbol(
+        Coord(5, 2),
+        Number {
+            value: 5,
+            begin: Coord(6, 3),
+            end: Coord(7, 3)
+        }
+    ));
 }
 
 #[test]
