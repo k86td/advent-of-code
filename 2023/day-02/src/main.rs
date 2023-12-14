@@ -214,44 +214,21 @@ fn process_part_two(input: &str) -> usize {
             continue;
         }
 
-        // let line = line.replace(';', ",");
         let line_splitted: Vec<&str> = line.split(':').collect();
-
-        let game_id = get_game_id(line_splitted.first().unwrap());
 
         let blocks = process_line(line_splitted.get(1).unwrap().trim());
 
-        let mut lowest_required_block: HashMap<String, usize> = HashMap::new();
-        lowest_required_block.insert("blue".to_string(), 0);
-        lowest_required_block.insert("red".to_string(), 0);
-        lowest_required_block.insert("green".to_string(), 0);
+        let mut gred: usize = 0;
+        let mut gblue: usize = 0;
+        let mut ggreen: usize = 0;
 
         for block in blocks {
-            let green = block.get("green").unwrap_or(&0);
-            let red = block.get("red").unwrap_or(&0);
-            let blue = block.get("blue").unwrap_or(&0);
-
-            let curr_green = lowest_required_block.get_mut("green").unwrap();
-            if green > curr_green {
-                *curr_green = *green;
-            }
-
-            let curr_blue = lowest_required_block.get_mut("blue").unwrap();
-            if blue > curr_blue {
-                *curr_blue = *blue;
-            }
-
-            let curr_red = lowest_required_block.get_mut("red").unwrap();
-            if red > curr_red {
-                *curr_red = *red;
-            }
+            ggreen = ggreen.max(*block.get("green").unwrap_or(&0));
+            gred = gred.max(*block.get("red").unwrap_or(&0));
+            gblue = gblue.max(*block.get("blue").unwrap_or(&0));
         }
 
-        let red = lowest_required_block.get("red").unwrap();
-        let blue = lowest_required_block.get("blue").unwrap();
-        let green = lowest_required_block.get("green").unwrap();
-
-        sum += red * blue * green;
+        sum += gred * gblue * ggreen;
     }
 
     sum
