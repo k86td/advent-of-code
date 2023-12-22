@@ -1,5 +1,5 @@
 use core::panic;
-use std::{cmp::Ordering, collections::HashMap};
+use std::{borrow::Borrow, cmp::Ordering, collections::HashMap};
 
 #[cfg(test)]
 mod test;
@@ -18,11 +18,11 @@ impl Card {
     fn value(&self) -> usize {
         match self {
             Card::Number(n) => *n,
-            Card::A => 14,
-            Card::K => 13,
-            Card::Q => 12,
-            Card::J => 11,
+            Card::A => 13,
+            Card::K => 12,
+            Card::Q => 11,
             Card::T => 10,
+            Card::J => 1,
         }
     }
 }
@@ -95,6 +95,23 @@ struct Hand {
 }
 
 impl Hand {
+    fn cmp_by_state(get_state: impl Fn(&Hand) -> HandState, a: &Hand, b: &Hand) -> Ordering {
+        match get_state(a).value().cmp(&get_state(b).value()) {
+            Ordering::Equal => {
+                for c in a.cards.iter().zip(b.cards.iter()) {
+                    match c.0.partial_cmp(c.1) {
+                        Some(Ordering::Equal) => continue,
+                        Some(o) => return o,
+                        _ => (),
+                    }
+                }
+
+                Ordering::Equal
+            }
+            o => o,
+        }
+    }
+
     fn count(&self) -> HashMap<Card, usize> {
         let mut count_map: HashMap<Card, usize> = HashMap::new();
 
@@ -135,6 +152,43 @@ impl Hand {
             _ => HandState::HighCard,
         }
     }
+
+    fn replace(&mut self, target: Card, new: Card) {
+        for (index, card) in self.cards.iter().enumerate() {
+            if *card == target {
+                self.cards[index] = new;
+                return;
+            }
+        }
+    }
+
+    fn jokers_state(&self) -> HandState {
+        let counts = self.count();
+        let jokers_count = counts.get(&Card::J).unwrap_or(&0);
+
+        if *jokers_count == 0 {
+            return self.state();
+        }
+
+        let possibilities = counts.keys().filter(|c| match c {
+            Card::J => false,
+            _ => true,
+        });
+
+        let mut biggest_state = self.state();
+        for poss in possibilities {
+            let mut iter_hand = self.clone();
+            for _ in 0..*jokers_count {
+                iter_hand.replace(Card::J, *poss);
+            }
+
+            if iter_hand.state().value() > biggest_state.value() {
+                biggest_state = iter_hand.state();
+            }
+        }
+
+        biggest_state
+    }
 }
 
 impl Eq for Hand {}
@@ -146,20 +200,7 @@ impl PartialEq for Hand {
 
 impl PartialOrd for Hand {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.state().value().cmp(&other.state().value()) {
-            Ordering::Equal => {
-                for c in self.cards.iter().zip(other.cards.iter()) {
-                    match c.0.partial_cmp(c.1) {
-                        Some(Ordering::Equal) => continue,
-                        Some(o) => return Some(o),
-                        _ => (),
-                    }
-                }
-
-                Some(Ordering::Equal)
-            }
-            o => Some(o),
-        }
+        Some(Hand::cmp_by_state(|hand| hand.state(), self, other))
     }
 }
 
@@ -211,7 +252,7 @@ impl Game {
     fn part_1(&self) -> usize {
         let mut hands = self.hands.clone();
         let mut bid = 0;
-        hands.sort();
+        hands.sort_by(|a, b| Hand::cmp_by_state(|h| h.state(), a, b));
 
         for (rank, hand) in hands.iter().enumerate() {
             // dbg!(&rank, &hand, &bid);
@@ -222,7 +263,16 @@ impl Game {
     }
 
     fn part_2(&self) -> usize {
-        0
+        let mut hands = self.hands.clone();
+        let mut bid = 0;
+        hands.sort_by(|a, b| Hand::cmp_by_state(|h| h.jokers_state(), a, b));
+
+        for (rank, hand) in hands.iter().enumerate() {
+            // dbg!(&rank, &hand, &bid);
+            bid += hand.bid * (rank + 1);
+        }
+
+        bid
     }
 }
 

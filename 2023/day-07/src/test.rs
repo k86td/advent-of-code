@@ -11,8 +11,10 @@ use crate::{process_part_one, process_part_two, Card, Game, Hand, HandState};
 #[test]
 fn card_compare() {
     assert!(Card::A > Card::K);
-    assert!(Card::J > Card::Number(10));
-    assert!(Card::Number(10) > Card::Number(2));
+    assert!(Card::T > Card::Number(9));
+    assert!(Card::Number(9) > Card::Number(2));
+
+    // Not testing J since its a joker in p2
 }
 
 #[test]
@@ -144,4 +146,16 @@ fn part_1() {
 #[test]
 fn part_2() {
     assert_eq!(process_part_two(TEST_INPUT), 0);
+}
+
+#[test]
+fn getting_joker_states() {
+    let h = Hand {
+        cards: [Card::K, Card::T, Card::J, Card::J, Card::T],
+        bid: 5,
+    };
+
+    dbg!(h.jokers_state());
+
+    panic!("to debug");
 }
