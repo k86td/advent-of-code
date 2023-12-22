@@ -39,7 +39,7 @@ impl From<char> for Card {
             'Q' => Card::Q,
             'J' => Card::J,
             'T' => Card::T,
-            '0'..='9' => Card::Number(value.to_string().parse().unwrap()),
+            digit @ '0'..='9' => Card::Number(digit.to_string().parse().unwrap()),
             _ => panic!("unknown symbol"),
         }
     }
@@ -53,13 +53,12 @@ impl PartialOrd for Card {
     }
 }
 
+impl Eq for Card {}
 impl PartialEq for Card {
     fn eq(&self, other: &Self) -> bool {
         self.value() == other.value()
     }
 }
-
-impl Eq for Card {}
 
 #[derive(Debug)]
 enum HandState {
@@ -126,33 +125,18 @@ impl Hand {
         count_map
     }
 
-    // possible count map:
-    // fiveKind [5]
-    // fourKind [4, 1]
-    // fullHouse [3, 2]
-    // threeKind [3, 1, 1]
-    // twoPair [2, 2, 1]
-    // onePair [2, 1, 1, 1]
-    // highCard [1, 1, 1, 1, 1]
     fn state(&self) -> HandState {
         let counts = self.count();
         let mut values = counts.values().collect::<Vec<&usize>>();
         values.sort_by(|a, b| b.cmp(a));
 
-        let mut values = values.iter();
-        match values.next() {
-            Some(5) => HandState::FiveKind,
-            Some(4) => HandState::FourKind,
-            Some(3) => match values.next() {
-                Some(2) => HandState::FullHouse,
-                Some(1) => HandState::ThreeKind,
-                _ => panic!("impossible state using more than the available number of cards"),
-            },
-            Some(2) => match values.next() {
-                Some(2) => HandState::TwoPair,
-                Some(1) => HandState::OnePair,
-                _ => panic!("impossible state using more than the available number of cards"),
-            },
+        match values[..] {
+            [5] => HandState::FiveKind,
+            [4, 1] => HandState::FourKind,
+            [3, 2] => HandState::FullHouse,
+            [3, 1, 1] => HandState::ThreeKind,
+            [2, 2, 1] => HandState::TwoPair,
+            [2, 1, 1, 1] => HandState::OnePair,
             _ => HandState::HighCard,
         }
     }

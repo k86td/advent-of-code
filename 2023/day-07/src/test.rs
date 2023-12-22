@@ -6,7 +6,7 @@ KTJJT 220
 QQQJA 483
 ";
 
-use crate::{process_part_one, process_part_two, Card, Game, Hand, HandState};
+use crate::{main, process_part_one, process_part_two, Card, Game, Hand, HandState};
 
 #[test]
 fn card_compare() {
@@ -146,4 +146,9 @@ fn part_1() {
 #[test]
 fn part_2() {
     assert_eq!(process_part_two(TEST_INPUT), 5905);
+}
+
+#[test]
+fn test_main() {
+    main();
 }
