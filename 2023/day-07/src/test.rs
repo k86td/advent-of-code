@@ -145,17 +145,5 @@ fn part_1() {
 
 #[test]
 fn part_2() {
-    assert_eq!(process_part_two(TEST_INPUT), 0);
-}
-
-#[test]
-fn getting_joker_states() {
-    let h = Hand {
-        cards: [Card::K, Card::T, Card::J, Card::J, Card::T],
-        bid: 5,
-    };
-
-    dbg!(h.jokers_state());
-
-    panic!("to debug");
+    assert_eq!(process_part_two(TEST_INPUT), 5905);
 }

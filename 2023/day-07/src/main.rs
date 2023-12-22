@@ -1,5 +1,9 @@
 use core::panic;
-use std::{borrow::Borrow, cmp::Ordering, collections::HashMap};
+use std::{
+    borrow::{Borrow, BorrowMut},
+    cmp::Ordering,
+    collections::HashMap,
+};
 
 #[cfg(test)]
 mod test;
@@ -153,11 +157,10 @@ impl Hand {
         }
     }
 
-    fn replace(&mut self, target: Card, new: Card) {
-        for (index, card) in self.cards.iter().enumerate() {
-            if *card == target {
+    fn replace_all(&mut self, target: Card, new: Card) {
+        for index in 0..self.cards.len() {
+            if self.cards[index] == target {
                 self.cards[index] = new;
-                return;
             }
         }
     }
@@ -178,9 +181,7 @@ impl Hand {
         let mut biggest_state = self.state();
         for poss in possibilities {
             let mut iter_hand = self.clone();
-            for _ in 0..*jokers_count {
-                iter_hand.replace(Card::J, *poss);
-            }
+            iter_hand.replace_all(Card::J, *poss);
 
             if iter_hand.state().value() > biggest_state.value() {
                 biggest_state = iter_hand.state();
