@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 #[cfg(test)]
 mod test;
@@ -101,8 +101,6 @@ fn parse(input: &str) -> Game {
 
     let direction = parse_direction(lines.next().unwrap());
 
-    let mut first: Option<String> = None;
-    let mut last: Option<String> = None;
     for line in lines {
         let (name, node) = {
             let mut splitted = line.split(" = ");
@@ -112,12 +110,6 @@ fn parse(input: &str) -> Game {
 
             (name.to_string(), node)
         };
-
-        if let None = first {
-            first = Some(name.clone());
-        }
-
-        last = Some(name.clone());
 
         map.insert(name, node);
     }
