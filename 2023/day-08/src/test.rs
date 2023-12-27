@@ -18,6 +18,19 @@ BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)
 ";
 
+const THIRD_TEST_INPUT: &str = "
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)
+";
+
 use std::collections::HashMap;
 
 use crate::{parse, process_part_one, process_part_two, Directions, Game, Node};
@@ -30,7 +43,7 @@ fn part_1() {
 
 #[test]
 fn part_2() {
-    assert_eq!(process_part_two(TEST_INPUT), 0);
+    assert_eq!(process_part_two(THIRD_TEST_INPUT), 6);
 }
 
 #[test]

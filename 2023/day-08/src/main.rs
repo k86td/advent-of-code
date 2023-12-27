@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use aoc_rusty_helper::math::lcm_of;
+
 #[cfg(test)]
 mod test;
 
@@ -51,9 +53,9 @@ impl std::fmt::Debug for Game {
 }
 
 impl Game {
-    fn find_quickest(&self, target: &str) -> usize {
+    fn find_quickest(&self, initial: &str, target: &str) -> usize {
         let mut count = 0;
-        let mut current = "AAA";
+        let mut current = initial;
         'ex_loop: loop {
             for direction in self.direction.clone() {
                 count += 1;
@@ -69,6 +71,34 @@ impl Game {
         }
 
         count
+    }
+
+    fn find_quickest_path(&self, initial: &str, finished: fn(&str) -> bool) -> usize {
+        let mut count = 0;
+        let mut current = initial;
+        'ex_loop: loop {
+            for direction in self.direction.clone() {
+                count += 1;
+                match direction {
+                    Directions::Left => current = &self.map.get(current).unwrap().left,
+                    Directions::Right => current = &self.map.get(current).unwrap().right,
+                }
+
+                if finished(current) {
+                    break 'ex_loop;
+                }
+            }
+        }
+
+        count
+    }
+
+    fn entry_nodes(&self) -> Vec<&str> {
+        self.map
+            .keys()
+            .filter(|k| k.chars().nth(2).unwrap() == 'A')
+            .map(|k| k.as_str())
+            .collect()
     }
 }
 
@@ -119,19 +149,26 @@ fn parse(input: &str) -> Game {
 
 fn process_part_one(input: &str) -> usize {
     let g = Game::from(input);
-    g.find_quickest("ZZZ")
+    g.find_quickest("AAA", "ZZZ")
 }
 
 fn process_part_two(input: &str) -> usize {
-    0
+    let g = Game::from(input);
+    let entry_node = g.entry_nodes();
+    let nodes: Vec<usize> = entry_node
+        .iter()
+        .map(|n| g.find_quickest_path(&n, |cn| cn.chars().nth(2).unwrap().eq(&'Z')))
+        .collect();
+
+    lcm_of(&nodes)
 }
 
 fn main() {
     let input = include_str!("../input");
 
     let part1 = process_part_one(&input);
-    let part2 = process_part_two(&input);
-
     println!("Part 1: {}", part1);
+
+    let part2 = process_part_two(&input);
     println!("Part 2: {}", part2);
 }
