@@ -175,6 +175,8 @@ impl<'a> SearchWindow<'a> {
     }
 }
 
+// this is probably brain dead and could be done much more elegantly using filters and other fancy
+// things
 fn part_1(input: &str) -> usize {
     let grid = parse(input);
     let mut count: usize = 0;
