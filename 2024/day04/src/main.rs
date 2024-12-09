@@ -253,7 +253,7 @@ fn part_2(input: &str) -> usize {
 
 #[cfg(test)]
 mod test {
-    use crate::{parse, part_1, part_2, SearchWindow};
+    use crate::{part_1, part_2};
 
     const INPUT_TEST: &str = "MMMSXXMASM
 MSAMXMSMSA
