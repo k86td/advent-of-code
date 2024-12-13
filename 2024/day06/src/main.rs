@@ -1,6 +1,8 @@
 use std::{
     cmp::{self, Ordering},
+    fmt::Display,
     fs,
+    io::{stdout, Write},
 };
 
 fn main() {
@@ -27,6 +29,15 @@ impl Facing {
             Facing::Right => Self::Down,
             Facing::Down => Self::Left,
             Facing::Left => Self::Up,
+        }
+    }
+
+    pub fn forward(&self, location: Coordinate) -> Coordinate {
+        match self {
+            Facing::Up => (location.0, location.1 - 1),
+            Facing::Down => (location.0, location.1 + 1),
+            Facing::Left => (location.0 - 1, location.1),
+            Facing::Right => (location.0 + 1, location.1),
         }
     }
 
@@ -85,6 +96,16 @@ enum MapElement {
     Guard { face: Facing },
 }
 
+impl Display for MapElement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MapElement::Empty => f.write_str("."),
+            MapElement::Obstacle => f.write_str("#"),
+            MapElement::Guard { face: _ } => f.write_str("^"),
+        }
+    }
+}
+
 impl MapElement {
     fn try_parse(content: &str) -> Result<Vec<Vec<MapElement>>, ()> {
         Ok(content
@@ -130,6 +151,18 @@ impl MapGrid {
         self.elements.first().expect("can get first element").len()
     }
 
+    pub fn get(&self, location: &Coordinate) -> Option<MapElement> {
+        self.elements
+            .get(location.1)
+            .and_then(|row| row.get(location.0).cloned())
+    }
+
+    pub fn set(&mut self, location: &Coordinate, element: MapElement) {
+        self.elements
+            .get_mut(location.1)
+            .and_then(|row| row.get_mut(location.0).map(|i| *i = element));
+    }
+
     pub fn get_row(&self, row: usize) -> Option<Vec<MapElement>> {
         self.elements.get(row).cloned()
     }
@@ -148,25 +181,13 @@ impl MapGrid {
         }
     }
 
-    fn _simple_filter(
-        elements: &[MapElement],
-        target: &MapElement,
-        comparing: usize,
-        order: Ordering,
-    ) -> Option<usize> {
-        elements
-            .iter()
-            .enumerate()
-            .filter_map(|(i, e)| {
-                if (order == i.cmp(&comparing) || Ordering::Equal == i.cmp(&comparing))
-                    && e == target
-                {
-                    Some(i)
-                } else {
-                    None
-                }
-            })
-            .next()
+    pub fn nearest_edge(&self, source: &Coordinate, facing: Facing) -> Option<Coordinate> {
+        match facing {
+            Facing::Up => Some((source.0, 0)),
+            Facing::Down => Some((source.0, self.height() - 1)),
+            Facing::Left => Some((0, source.1)),
+            Facing::Right => Some((0, self.width() - 1)),
+        }
     }
 
     pub fn find_facing(
@@ -207,6 +228,22 @@ fn coordinates_between(a: Coordinate, b: Coordinate) -> Vec<Coordinate> {
     }
 }
 
+fn coordinates_inbetween(a: Coordinate, b: Coordinate) -> Vec<Coordinate> {
+    if (a.0 as isize - b.0 as isize).unsigned_abs() > (a.1 as isize - b.1 as isize).unsigned_abs() {
+        // moving horizontally
+        (cmp::min(a.0, b.0)..cmp::max(a.0, b.0))
+            .skip(1)
+            .map(|i| (i, a.1))
+            .collect()
+    } else {
+        // moving vertically
+        (cmp::min(a.1, b.1)..cmp::max(a.1, b.1))
+            .skip(1)
+            .map(|i| (a.0, i))
+            .collect()
+    }
+}
+
 fn part_1(input: &str) -> usize {
     let map = MapGrid {
         elements: MapElement::try_parse(input).expect("can parse input"),
@@ -219,7 +256,6 @@ fn part_1(input: &str) -> usize {
     let mut distance: Vec<Coordinate> = Vec::new();
     let mut finding = (guard, Facing::Up);
     while let Some(found) = map.find_facing(&finding.0, &MapElement::Obstacle, finding.1) {
-        dbg!((&finding.0, &finding.1));
         distance.append(&mut coordinates_between(finding.0, found));
         finding = (found, finding.1.rotate_cw());
     }
@@ -247,7 +283,116 @@ fn part_1(input: &str) -> usize {
 }
 
 fn part_2(input: &str) -> usize {
-    0
+    let map = MapGrid {
+        elements: MapElement::try_parse(input).expect("can parse input"),
+    };
+
+    let guard = map
+        .find_anywhere(&MapElement::Guard { face: Facing::Up })
+        .expect("can found guard");
+
+    let mut history: Vec<(Coordinate, Facing)> = Vec::new();
+    let mut finding = (guard, Facing::Up);
+    while let Some(found) = map.find_facing(&finding.0, &MapElement::Obstacle, finding.1) {
+        history.push((found, finding.1));
+        finding = (found, finding.1.rotate_cw());
+    }
+
+    history.push((
+        map.nearest_edge(&finding.0, finding.1)
+            .expect("to be an edge"),
+        finding.1,
+    ));
+
+    let ref_history = history.clone();
+    let t = history
+        .clone()
+        .into_iter()
+        .zip(history.clone().into_iter().skip(1))
+        .flat_map(|(a, b)| {
+            coordinates_inbetween(a.0, b.0)
+                .into_iter()
+                .map(|c| (c, a.1.rotate_cw()))
+                .collect::<Vec<(Coordinate, Facing)>>()
+        })
+        // first validation filter, take the most promising spots
+        .filter(|e| {
+            let pot_obstacle = map.find_facing(&e.0, &MapElement::Obstacle, e.1.rotate_cw());
+
+            if let Some(obs) = pot_obstacle {
+                ref_history.contains(&(obs, e.1.rotate_cw()))
+            } else {
+                false
+            }
+        })
+        // then confirm the sport by checking if we can actually reach the same spot twice
+        .filter(|(coord, facing)| {
+            println!("\nchecking: {:?}", coord);
+
+            let mut map_virtual_obstacle = map.clone();
+            map_virtual_obstacle.set(
+                &facing
+                    .apply(coord, &map_virtual_obstacle)
+                    .expect("can put obstacle in front")
+                    .first()
+                    .expect("to be a first")
+                    .0,
+                MapElement::Obstacle,
+            );
+
+            let mut max_counter = 0;
+            let mut last_checked = (*coord, facing.rotate_cw());
+            while let Some(found) = map_virtual_obstacle.find_facing(
+                &last_checked.0,
+                &MapElement::Obstacle,
+                last_checked.1,
+            ) {
+                print!("\r({:#04},{:#04}) @{}", found.0, found.1, max_counter);
+
+                max_counter += 1;
+                last_checked = (found, last_checked.1.rotate_cw());
+
+                if found == *coord {
+                    print!(" ✔️");
+                    return true;
+                }
+
+                let _ = stdout().flush();
+            }
+
+            false
+        })
+        .collect::<Vec<(Coordinate, Facing)>>();
+
+    print_map(&map, &t);
+
+    t.len()
+}
+
+fn print_map(map: &MapGrid, points: &[(Coordinate, Facing)]) {
+    (0..map.height())
+        .map(|y| {
+            (0..map.width())
+                .flat_map(move |x| {
+                    if let Some(el) = map.get(&(x, y)) {
+                        if let Some((_, face)) = points.iter().find(|(c, _)| c == &(x, y)) {
+                            Some(match face {
+                                Facing::Up => "^".to_string(),
+                                Facing::Down => "v".to_string(),
+                                Facing::Left => "<".to_string(),
+                                Facing::Right => ">".to_string(),
+                            })
+                        } else {
+                            Some(el.to_string())
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join("")
+        })
+        .for_each(|r| println!("{}", r));
 }
 
 #[cfg(test)]
@@ -266,6 +411,19 @@ mod test {
 ........#.
 #.........
 ......#...";
+
+    #[test]
+    fn can_replace_character_inside_map() {
+        let mut map = MapGrid {
+            elements: MapElement::try_parse(INPUT_TEST).expect("can parse input"),
+        };
+
+        map.set(&(0, 0), MapElement::Guard { face: Facing::Down });
+        assert_eq!(
+            map.get(&(0, 0)),
+            Some(MapElement::Guard { face: Facing::Down })
+        );
+    }
 
     #[test]
     fn can_find_with_multiple_obstacle() {
