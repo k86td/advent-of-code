@@ -14,7 +14,7 @@ fn main() {
 
 type Coordinate = (usize, usize);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Facing {
     Up,
     Down,
@@ -287,86 +287,76 @@ fn part_2(input: &str) -> usize {
         elements: MapElement::try_parse(input).expect("can parse input"),
     };
 
-    let guard = map
+    let guard_start = map
         .find_anywhere(&MapElement::Guard { face: Facing::Up })
         .expect("can found guard");
 
-    let mut history: Vec<(Coordinate, Facing)> = Vec::new();
-    let mut finding = (guard, Facing::Up);
-    while let Some(found) = map.find_facing(&finding.0, &MapElement::Obstacle, finding.1) {
-        history.push((found, finding.1));
-        finding = (found, finding.1.rotate_cw());
+    // Get all positions the guard visits in the original path
+    let mut visited_positions = std::collections::HashSet::new();
+    let mut current_pos = guard_start;
+    let mut current_facing = Facing::Up;
+    
+    loop {
+        visited_positions.insert(current_pos);
+        
+        if let Some(obstacle_pos) = map.find_facing(&current_pos, &MapElement::Obstacle, current_facing) {
+            // Add all positions between current and obstacle
+            for pos in coordinates_between(current_pos, obstacle_pos) {
+                visited_positions.insert(pos);
+            }
+            current_pos = obstacle_pos;
+            current_facing = current_facing.rotate_cw();
+        } else {
+            // Add positions to edge
+            let edge_pos = match current_facing {
+                Facing::Up => (current_pos.0, 0),
+                Facing::Down => (current_pos.0, map.height() - 1),
+                Facing::Left => (0, current_pos.1),
+                Facing::Right => (map.width() - 1, current_pos.1),
+            };
+            for pos in coordinates_between(current_pos, edge_pos) {
+                visited_positions.insert(pos);
+            }
+            break;
+        }
     }
 
-    history.push((
-        map.nearest_edge(&finding.0, finding.1)
-            .expect("to be an edge"),
-        finding.1,
-    ));
+    // Try placing obstacle at each visited position (except guard start)
+    let mut loop_count = 0;
+    for &obstacle_pos in &visited_positions {
+        if obstacle_pos == guard_start {
+            continue; // Can't place obstacle at guard's starting position
+        }
 
-    let ref_history = history.clone();
-    let t = history
-        .clone()
-        .into_iter()
-        .zip(history.clone().into_iter().skip(1))
-        .flat_map(|(a, b)| {
-            coordinates_inbetween(a.0, b.0)
-                .into_iter()
-                .map(|c| (c, a.1.rotate_cw()))
-                .collect::<Vec<(Coordinate, Facing)>>()
-        })
-        // first validation filter, take the most promising spots
-        .filter(|e| {
-            let pot_obstacle = map.find_facing(&e.0, &MapElement::Obstacle, e.1.rotate_cw());
+        // Create map with new obstacle
+        let mut test_map = map.clone();
+        test_map.set(&obstacle_pos, MapElement::Obstacle);
 
-            if let Some(obs) = pot_obstacle {
-                ref_history.contains(&(obs, e.1.rotate_cw()))
+        // Simulate guard movement and check for loops
+        let mut visited_states = std::collections::HashSet::new();
+        let mut current_pos = guard_start;
+        let mut current_facing = Facing::Up;
+
+        loop {
+            let state = (current_pos, current_facing);
+            if visited_states.contains(&state) {
+                // Found a loop!
+                loop_count += 1;
+                break;
+            }
+            visited_states.insert(state);
+
+            if let Some(obstacle_pos) = test_map.find_facing(&current_pos, &MapElement::Obstacle, current_facing) {
+                current_pos = obstacle_pos;
+                current_facing = current_facing.rotate_cw();
             } else {
-                false
+                // Guard exits the map, no loop
+                break;
             }
-        })
-        // then confirm the sport by checking if we can actually reach the same spot twice
-        .filter(|(coord, facing)| {
-            println!("\nchecking: {:?}", coord);
+        }
+    }
 
-            let mut map_virtual_obstacle = map.clone();
-            map_virtual_obstacle.set(
-                &facing
-                    .apply(coord, &map_virtual_obstacle)
-                    .expect("can put obstacle in front")
-                    .first()
-                    .expect("to be a first")
-                    .0,
-                MapElement::Obstacle,
-            );
-
-            let mut max_counter = 0;
-            let mut last_checked = (*coord, facing.rotate_cw());
-            while let Some(found) = map_virtual_obstacle.find_facing(
-                &last_checked.0,
-                &MapElement::Obstacle,
-                last_checked.1,
-            ) {
-                print!("\r({:#04},{:#04}) @{}", found.0, found.1, max_counter);
-
-                max_counter += 1;
-                last_checked = (found, last_checked.1.rotate_cw());
-
-                if found == *coord {
-                    print!(" ✔️");
-                    return true;
-                }
-
-                let _ = stdout().flush();
-            }
-
-            false
-        })
-        .collect::<Vec<(Coordinate, Facing)>>();
-
-    print_map(&map, &t);
-
-    t.len()
+    loop_count
 }
 
 fn print_map(map: &MapGrid, points: &[(Coordinate, Facing)]) {
