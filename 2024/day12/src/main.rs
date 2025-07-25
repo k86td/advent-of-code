@@ -116,9 +116,10 @@ pub fn get_zone(
     location: Coordinate,
     map: &HashMap<Coordinate, char>,
     checked: &mut HashSet<Coordinate>,
-) -> Zone {
+) -> (Zone, HashSet<Coordinate>) {
     let our_char = map.get(&location).expect("can get from location");
     let mut tiles: Vec<Tile> = Vec::new();
+    let mut region_tiles: HashSet<Coordinate> = HashSet::new();
 
     let mut to_check: Vec<Coordinate> = vec![location];
     while let Some(nxt) = to_check.pop() {
@@ -146,6 +147,7 @@ pub fn get_zone(
             });
 
         checked.insert(nxt);
+        region_tiles.insert(nxt);
 
         if edges == 4 && !to_check.is_empty() {
             panic!("edges all sides but still tiles to check");
@@ -156,7 +158,7 @@ pub fn get_zone(
         }
     }
 
-    Zone::new(*our_char, tiles)
+    (Zone::new(*our_char, tiles), region_tiles)
 }
 
 fn part_1(input: &str) -> usize {
@@ -169,35 +171,82 @@ fn part_1(input: &str) -> usize {
             continue;
         }
 
-        zones.push(get_zone(coord, &map, &mut checked));
+        let (zone, _) = get_zone(coord, &map, &mut checked);
+        zones.push(zone);
     }
 
     zones.into_iter().map(|z| z.area * z.perimeter).sum()
 }
 
+fn count_sides(region: &HashSet<Coordinate>, map: &HashMap<Coordinate, char>) -> usize {
+    let plant = map.get(region.iter().next().unwrap()).unwrap();
+    let mut sides = 0;
+    
+    // Count horizontal sides (top and bottom)
+    for &coord in region {
+        // Check top side
+        let above = coord.up();
+        if !region.contains(&above) || map.get(&above) != Some(plant) {
+            // This is a top edge, check if it's the start of a new horizontal side
+            let left = coord.left();
+            if !region.contains(&left) || map.get(&left.up()) == Some(plant) {
+                sides += 1;
+            }
+        }
+        
+        // Check bottom side
+        let below = coord.down();
+        if !region.contains(&below) || map.get(&below) != Some(plant) {
+            // This is a bottom edge, check if it's the start of a new horizontal side
+            let left = coord.left();
+            if !region.contains(&left) || map.get(&left.down()) == Some(plant) {
+                sides += 1;
+            }
+        }
+    }
+    
+    // Count vertical sides (left and right)
+    for &coord in region {
+        // Check left side
+        let left = coord.left();
+        if !region.contains(&left) || map.get(&left) != Some(plant) {
+            // This is a left edge, check if it's the start of a new vertical side
+            let above = coord.up();
+            if !region.contains(&above) || map.get(&above.left()) == Some(plant) {
+                sides += 1;
+            }
+        }
+        
+        // Check right side
+        let right = coord.right();
+        if !region.contains(&right) || map.get(&right) != Some(plant) {
+            // This is a right edge, check if it's the start of a new vertical side
+            let above = coord.up();
+            if !region.contains(&above) || map.get(&above.right()) == Some(plant) {
+                sides += 1;
+            }
+        }
+    }
+    
+    sides
+}
+
 fn part_2(input: &str) -> usize {
     let map = parse(input);
     let mut checked: HashSet<Coordinate> = HashSet::new();
-    let mut zones: Vec<Zone> = Vec::new();
+    let mut total = 0;
 
     for coord in map.clone().into_keys() {
         if checked.contains(&coord) {
             continue;
         }
 
-        let mut z = get_zone(coord, &map, &mut checked);
-        z.only_corners();
-
-        zones.push(z);
+        let (zone, region_tiles) = get_zone(coord, &map, &mut checked);
+        let sides = count_sides(&region_tiles, &map);
+        total += zone.area * sides;
     }
 
-    zones
-        .into_iter()
-        .inspect(|z| {
-            dbg!((z, Zone::perimeter(&z.tiles) / 2));
-        })
-        .map(|z| z.area * (Zone::perimeter(&z.tiles) / 2))
-        .sum()
+    total
 }
 
 // could use the shoelace formula to calculate area & perimeter straight-forward way
