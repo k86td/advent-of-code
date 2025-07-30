@@ -1,4 +1,4 @@
-use std::{fs, ops::Mul};
+use std::fs;
 
 // using algebra, calculate using elimination method
 
@@ -8,32 +8,10 @@ struct Button {
     y: f64,
 }
 
-impl Mul<f64> for Button {
-    type Output = Self;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
-
 #[derive(PartialEq, Debug)]
 struct Prize {
     tx: f64,
     ty: f64,
-}
-
-impl Mul<f64> for Prize {
-    type Output = Self;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self {
-            tx: self.tx * rhs,
-            ty: self.ty * rhs,
-        }
-    }
 }
 
 impl TryFrom<String> for Button {
@@ -94,18 +72,6 @@ impl TryFrom<String> for Puzzle {
             bb: Button::try_from(lines.next().unwrap().to_string()).unwrap(),
             prize: Prize::try_from(lines.next().unwrap().to_string()).unwrap(),
         })
-    }
-}
-
-impl Mul<f64> for Puzzle {
-    type Output = Self;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Puzzle {
-            ba: self.ba * rhs,
-            bb: self.bb * rhs,
-            prize: self.prize * rhs,
-        }
     }
 }
 
@@ -259,71 +225,6 @@ Prize: X=8400, Y=5400"
                     ty: 5400.0
                 }
             })
-        );
-    }
-
-    #[test]
-    fn test_mul_for_button() {
-        let button = Button { x: 10.0, y: 20.0 };
-        let result = button * 2.5;
-        assert_eq!(result, Button { x: 25.0, y: 50.0 });
-
-        let button2 = Button { x: 7.0, y: 3.0 };
-        let result2 = button2 * 0.5;
-        assert_eq!(result2, Button { x: 3.5, y: 1.5 });
-    }
-
-    #[test]
-    fn test_mul_for_prize() {
-        let prize = Prize {
-            tx: 100.0,
-            ty: 200.0,
-        };
-        let result = prize * 3.0;
-        assert_eq!(
-            result,
-            Prize {
-                tx: 300.0,
-                ty: 600.0
-            }
-        );
-
-        let prize2 = Prize {
-            tx: 8400.0,
-            ty: 5400.0,
-        };
-        let result2 = prize2 * 0.1;
-        assert_eq!(
-            result2,
-            Prize {
-                tx: 840.0,
-                ty: 540.0
-            }
-        );
-    }
-
-    #[test]
-    fn test_mul_for_puzzle() {
-        let puzzle = Puzzle {
-            ba: Button { x: 10.0, y: 20.0 },
-            bb: Button { x: 5.0, y: 15.0 },
-            prize: Prize {
-                tx: 100.0,
-                ty: 200.0,
-            },
-        };
-
-        let result = puzzle * 2.0;
-        assert_eq!(
-            result,
-            Puzzle {
-                ba: Button { x: 20.0, y: 40.0 },
-                bb: Button { x: 10.0, y: 30.0 },
-                prize: Prize {
-                    tx: 200.0,
-                    ty: 400.0
-                }
-            }
         );
     }
 }
