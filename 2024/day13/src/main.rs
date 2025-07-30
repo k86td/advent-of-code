@@ -4,14 +4,14 @@ use std::{fs, ops::Mul};
 
 #[derive(PartialEq, Debug)]
 struct Button {
-    x: f32,
-    y: f32,
+    x: f64,
+    y: f64,
 }
 
-impl Mul<f32> for Button {
+impl Mul<f64> for Button {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: f64) -> Self::Output {
         Self {
             x: self.x * rhs,
             y: self.y * rhs,
@@ -21,14 +21,14 @@ impl Mul<f32> for Button {
 
 #[derive(PartialEq, Debug)]
 struct Prize {
-    tx: f32,
-    ty: f32,
+    tx: f64,
+    ty: f64,
 }
 
-impl Mul<f32> for Prize {
+impl Mul<f64> for Prize {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: f64) -> Self::Output {
         Self {
             tx: self.tx * rhs,
             ty: self.ty * rhs,
@@ -45,8 +45,8 @@ impl TryFrom<String> for Button {
             e.replace("X", "")
                 .replace("Y", "")
                 .split(",")
-                .map(|i| i.trim().parse::<f32>().unwrap())
-                .collect::<Vec<f32>>()
+                .map(|i| i.trim().parse::<f64>().unwrap())
+                .collect::<Vec<f64>>()
         });
 
         Ok(Button {
@@ -65,8 +65,8 @@ impl TryFrom<String> for Prize {
             e.replace("X=", "")
                 .replace("Y=", "")
                 .split(",")
-                .map(|i| i.trim().parse::<f32>().unwrap())
-                .collect::<Vec<f32>>()
+                .map(|i| i.trim().parse::<f64>().unwrap())
+                .collect::<Vec<f64>>()
         });
 
         Ok(Prize {
@@ -97,10 +97,10 @@ impl TryFrom<String> for Puzzle {
     }
 }
 
-impl Mul<f32> for Puzzle {
+impl Mul<f64> for Puzzle {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: f64) -> Self::Output {
         Puzzle {
             ba: self.ba * rhs,
             bb: self.bb * rhs,
@@ -144,7 +144,36 @@ fn part_1(input: &str) -> usize {
 }
 
 fn part_2(input: &str) -> usize {
-    0
+    let mut sum = 0;
+    let puzzles: Vec<Puzzle> = input
+        .split("\n\n")
+        .map(|p| {
+            let mut p = Puzzle::try_from(p.to_string()).unwrap();
+            p.prize.tx = p.prize.tx + 10000000000000.0;
+            p.prize.ty = p.prize.ty + 10000000000000.0;
+            p
+        })
+        .collect();
+
+    for p in puzzles {
+        dbg!(&p);
+        let y = ((p.prize.tx * p.ba.y) - (p.prize.ty * p.ba.x))
+            / ((p.ba.y * p.bb.x) - (p.bb.y * p.ba.x));
+
+        if !(y.fract() == 0.0) {
+            continue;
+        }
+
+        let x = (p.prize.tx - (p.bb.x * y)) / (p.ba.x);
+
+        if !(x.fract() == 0.0) {
+            continue;
+        }
+
+        sum += y as usize + (x as usize * 3)
+    }
+
+    sum
 }
 
 #[cfg(test)]
@@ -174,7 +203,7 @@ Prize: X=18641, Y=10279";
 
     #[test]
     fn solve_part_2() {
-        assert_eq!(part_2(INPUT_TEST), 1);
+        assert_eq!(part_2(INPUT_TEST), 875318608908);
     }
 
     use crate::Button;
