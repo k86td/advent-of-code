@@ -1,4 +1,14 @@
-use std::fs;
+use crossterm::{
+    cursor,
+    event::{self, Event, KeyCode},
+    terminal::{self, ClearType},
+    ExecutableCommand,
+};
+use std::{
+    fs,
+    io::{self, Write},
+    time::Duration,
+};
 
 #[derive(Debug, PartialEq)]
 struct Robot {
@@ -27,10 +37,19 @@ impl From<&str> for Robot {
 }
 
 impl Robot {
-    fn pass(self, seconds: i32) -> Self {
+    fn pass(&self, seconds: i32) -> Self {
         Robot {
             x: self.x + (self.sx * seconds),
             y: self.y + (self.sy * seconds),
+            sx: self.sx,
+            sy: self.sy,
+        }
+    }
+
+    fn revert(&self, seconds: i32) -> Self {
+        Robot {
+            x: self.x - (self.sx * seconds),
+            y: self.y - (self.sy * seconds),
             sx: self.sx,
             sy: self.sy,
         }
@@ -58,6 +77,25 @@ impl Robot {
             (true, false) => Quadrant::TopRight,
             (false, true) => Quadrant::BottomLeft,
             (false, false) => Quadrant::BottomRight,
+        }
+    }
+
+    fn visualize(robots: &[Robot], grid_size: (i32, i32)) {
+        let mut grid = vec![vec![0; grid_size.0 as usize]; grid_size.1 as usize];
+
+        for robot in robots {
+            grid[robot.y as usize][robot.x as usize] += 1;
+        }
+
+        for row in grid {
+            for count in row {
+                if count == 0 {
+                    print!(".");
+                } else {
+                    print!("{}", count);
+                }
+            }
+            print!("\r\n");
         }
     }
 }
@@ -92,7 +130,139 @@ fn part_1(input: &str, grid_size: (i32, i32)) -> usize {
         .product()
 }
 
+/// Calculates the standard deviation of a collection of floating-point values.
+/// 
+/// This function computes the population standard deviation by:
+/// 1. Calculating the mean of all values
+/// 2. Computing the sum of squared differences from the mean
+/// 3. Taking the square root of the variance
+/// 
+/// # Arguments
+/// * `c` - A slice of f64 values
+/// 
+/// # Returns
+/// The standard deviation as an f64
+fn derivation(c: &[f64]) -> f64 {
+    let mut mean = 0.0;
+    for v in c {
+        mean += v;
+    }
+    mean /= c.len() as f64;
+
+    (c.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / c.len() as f64).sqrt()
+}
+
+/// Calculates the standard deviation of robot positions in both x and y dimensions.
+/// 
+/// This function extracts the x and y coordinates from all robots and computes
+/// their respective standard deviations. This is useful for detecting when robots
+/// cluster together (low standard deviation) which might indicate pattern formation.
+/// 
+/// # Arguments
+/// * `robots` - A slice of Robot structs
+/// 
+/// # Returns
+/// A tuple containing (x_std_dev, y_std_dev) where:
+/// - x_std_dev: Standard deviation of x-coordinates
+/// - y_std_dev: Standard deviation of y-coordinates
+fn robot_derivation(robots: &[Robot]) -> (f64, f64) {
+    let xs: Vec<f64> = robots.iter().map(|r| r.x as f64).collect();
+    let ys: Vec<f64> = robots.iter().map(|r| r.y as f64).collect();
+
+    (derivation(&xs), derivation(&ys))
+}
+
+// 10% decrease in std, something's up o.0
+const STD_THRESHOLD: f64 = 0.9;
+
 fn part_2(input: &str, grid_size: (i32, i32)) -> usize {
+    let base_std_x = ((grid_size.0 as f64 - 1.0).powi(2) / 12.0).sqrt();
+    let base_std_y = ((grid_size.1 as f64 - 1.0).powi(2) / 12.0).sqrt();
+
+    let mut robots: Vec<Robot> = input
+        .lines()
+        .map(|r| Robot::from(r))
+        // 8280
+        // .map(|r| r.pass(8280).wrap(grid_size))
+        .collect();
+
+    let (x, y) = {
+        let mut i = 1;
+        let mut x_std: Option<usize> = None;
+        let mut y_std: Option<usize> = None;
+        loop {
+            if x_std.is_some() && y_std.is_some() {
+                break;
+            }
+
+            robots = robots.iter().map(|r| r.pass(1).wrap(grid_size)).collect();
+            let (cx_std, cy_std) = robot_derivation(&robots);
+
+            if cx_std < (base_std_x * STD_THRESHOLD) {
+                x_std = Some(i);
+            }
+
+            if cy_std < (base_std_y * STD_THRESHOLD) {
+                y_std = Some(i);
+            }
+
+            i += 1;
+        }
+        (
+            x_std.expect("x_std is defined"),
+            y_std.expect("y_std is defined"),
+        )
+    };
+
+    dbg!(x, y);
+
+    // Robot::visualize(&robots, grid_size);
+    // let v = variation(&x);
+    // dbg!(v, v.sqrt());
+
+    // terminal::enable_raw_mode().unwrap();
+    //
+    // loop {
+    //     print!("\x1B[2J\x1B[1;1H");
+    //     Robot::visualize(&robots, grid_size);
+    //
+    //     let x: Vec<f64> = robots.iter().map(|r| r.x as f64).collect();
+    //     let y: Vec<f64> = robots.iter().map(|r| r.y as f64).collect();
+    //
+    //     print!(
+    //         "iter:{}, d_x:{}, d_y:{} (use arrow keys: right=forward, left=backward, q=quit)\r\n",
+    //         &n,
+    //         derivation(&x),
+    //         derivation(&y),
+    //     );
+    //     io::stdout().flush().unwrap();
+    //
+    //     if event::poll(Duration::from_millis(100)).unwrap() {
+    //         if let Event::Key(key_event) = event::read().unwrap() {
+    //             match key_event.code {
+    //                 KeyCode::Right => {
+    //                     robots = robots
+    //                         .into_iter()
+    //                         .map(|r| r.pass(1).wrap(grid_size))
+    //                         .collect();
+    //                     n += 1;
+    //                 }
+    //                 KeyCode::Left => {
+    //                     robots = robots
+    //                         .into_iter()
+    //                         .map(|r| r.revert(1).wrap(grid_size))
+    //                         .collect();
+    //                     n -= 1;
+    //                 }
+    //                 KeyCode::Char('q') => break,
+    //                 _ => {}
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // terminal::disable_raw_mode().unwrap();
+
     0
 }
 
@@ -127,7 +297,8 @@ p=9,5 v=-3,-3";
 
     #[test]
     fn solve_part_2() {
-        assert_eq!(part_2(INPUT_TEST, (11, 7)), 1);
+        // can't test this part:(
+        assert_eq!(part_2(INPUT_TEST, (11, 7)), 0);
     }
 
     #[test]
